@@ -73,8 +73,30 @@ class StoryList {
    * Returns the new Story instance
    */
 
-  async addStory( /* user, newStory */) {
+  async addStory(user, {title, author, url}) {
     // UNIMPLEMENTED: complete this function!
+    let userToken = user.loginToken;
+    const response = await axios({
+      url: `${BASE_URL}/stories`,
+      method: 'POST',
+      data: {token: userToken, story: {title: title, author: author, url: url}}
+    })
+    let story = new Story(response.data.story)
+    this.stories.unshift(story);
+    user.ownStories.unshift(story);
+    return story;
+  }
+
+  async removeStory(user, storyId) {
+    let userToken = user.loginToken;
+    await axios({
+      url: `${BASE_URL}/stories/${storyId}`,
+      method: 'DELETE',
+      data: {token: userToken}
+    })
+    this.stories = this.stories.filter(s => s.storyId !== storyId);
+    user.ownStories = user.ownStories.filter(s => s.storyId !== storyId);
+    user.favorites = user.favorites.filter(s => s.storyId !== storyId);
   }
 }
 
@@ -109,6 +131,8 @@ class User {
     this.loginToken = token;
   }
 
+  
+
   /** Register new user in API, make User instance & return it.
    *
    * - username: a new username
@@ -137,6 +161,7 @@ class User {
     );
   }
 
+  
   /** Login in user with API, make User instance & return it.
 
    * - username: an existing user's username
@@ -163,6 +188,8 @@ class User {
       response.data.token
     );
   }
+
+  
 
   /** When we already have credentials (token & username) for a user,
    *   we can log them in automatically. This function does that.
@@ -192,5 +219,32 @@ class User {
       console.error("loginViaStoredCredentials failed", err);
       return null;
     }
+  }
+
+  /** add a story to favorite*/ 
+  async addFavorite(story) {
+    this.favorites.push(story);
+    const token = this.loginToken;
+    await axios({
+      url: `${BASE_URL}/users/${this.username}/favorites/${story.storyId}`,
+      method: 'POST',
+      data: {token}
+    })
+  }
+
+  async removeFavorite(story) {
+      this.favorites = this.favorites.filter(s => s.storyId !== story.storyId);
+      const token = this.loginToken;
+      await axios({
+        url: `${BASE_URL}/users/${this.username}/favorites/${story.storyId}`,
+        method: 'DELETE',
+        data: {token}
+      })
+  }
+  
+  isFavorite(story) {
+    return this.favorites.some(function(storyInUserFavorites) {
+      return storyInUserFavorites.storyId === story.storyId;
+    })
   }
 }
